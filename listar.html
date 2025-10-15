@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Inscritos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Enlaza el CSS externo -->
+  <link rel="stylesheet" href="styles/listar.css">
+  <!-- quita el favicon si no tienes archivo para evitar 404 -->
+  <!-- <link rel="icon" href="/favicon.ico"> -->
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <h1>Inscritos</h1>
+      <span class="pill" id="contador">0 registros</span>
+    </header>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Email</th>
+            <th>Teléfono</th>
+            <th>Comentarios</th>
+            <th>Creado</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+    import { firebaseConfig } from './firebase.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Autenticación anónima (para reglas que requieren request.auth)
+    await signInAnonymously(auth);
+
+    const tbody = document.getElementById('tbody');
+    const contador = document.getElementById('contador');
+
+    // Consulta: últimos primero
+    const q = query(collection(db, 'inscritos'), orderBy('creadoEn', 'desc'));
+
+    onSnapshot(q, (snapshot) => {
+      tbody.innerHTML = '';
+      let count = 0;
+
+      if (snapshot.empty) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6" class="empty">Sin registros</td>`;
+        tbody.appendChild(tr);
+      } else {
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          let fechaTxt = '';
+          try {
+            if (d.creadoEn && typeof d.creadoEn.toDate === 'function') {
+              fechaTxt = d.creadoEn.toDate().toLocaleString();
+            }
+          } catch (_) {}
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${d.nombre || ''}</td>
+            <td>${d.apellido || ''}</td>
+            <td>${d.email || ''}</td>
+            <td>${d.telefono || ''}</td>
+            <td>${d.comentarios || ''}</td>
+            <td>${fechaTxt}</td>
+          `;
+          tbody.appendChild(tr);
+          count++;
+        });
+      }
+
+      contador.textContent = `${count} registro${count === 1 ? '' : 's'}`;
+    }, (err) => {
+      console.error(err);
+      alert('No se pudo cargar el listado: ' + (err?.message || 'permiso denegado'));
+    });
+  </script>
+</body>
+</html>
